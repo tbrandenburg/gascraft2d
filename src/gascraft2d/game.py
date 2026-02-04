@@ -5,7 +5,7 @@ import math
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, TypedDict, cast
 
 import pygame
 
@@ -55,7 +55,9 @@ BLOCKS: Dict[int, BlockDef] = {
     BLOCK_STONE: BlockDef(BLOCK_STONE, "Stone", (60, 70, 90), NEON_BLUE, 0.65, True),
     BLOCK_ORE: BlockDef(BLOCK_ORE, "Ore", (50, 100, 130), NEON_CYAN, 0.95, True),
     BLOCK_WOOD: BlockDef(BLOCK_WOOD, "Wood", (30, 90, 40), NEON_GREEN, 0.38, True),
-    BLOCK_BEDROCK: BlockDef(BLOCK_BEDROCK, "Bedrock", (80, 0, 0), NEON_RED, 9999.0, True, True, True),
+    BLOCK_BEDROCK: BlockDef(
+        BLOCK_BEDROCK, "Bedrock", (80, 0, 0), NEON_RED, 9999.0, True, True, True
+    ),
 }
 
 
@@ -101,9 +103,17 @@ class Particle:
         tx = int(self.prev_x - camera.x)
         ty = int(self.prev_y - camera.y)
         trail = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
-        pygame.draw.line(trail, (*self.color, alpha // 2), (tx, ty), (sx, sy), max(1, int(self.size)))
+        pygame.draw.line(
+            trail, (*self.color, alpha // 2), (tx, ty), (sx, sy), max(1, int(self.size))
+        )
         pygame.draw.circle(trail, (*self.color, alpha), (sx, sy), max(1, int(self.size)))
         surface.blit(trail, (0, 0))
+
+
+class Recipe(TypedDict):
+    name: str
+    inputs: List[Tuple[int, int]]
+    output: Tuple[int, int]
 
 
 class Inventory:
@@ -184,11 +194,17 @@ class Inventory:
         cols = 9
         rows = 3 if full else 1
         sx = panel_rect.x + 20
-        sy = panel_rect.y + panel_rect.height - (slot_size + 20 if not full else rows * (slot_size + pad) + 20)
+        sy = (
+            panel_rect.y
+            + panel_rect.height
+            - (slot_size + 20 if not full else rows * (slot_size + pad) + 20)
+        )
         for row in range(rows):
             for col in range(cols):
                 idx = row * cols + col
-                rect = pygame.Rect(sx + col * (slot_size + pad), sy + row * (slot_size + pad), slot_size, slot_size)
+                rect = pygame.Rect(
+                    sx + col * (slot_size + pad), sy + row * (slot_size + pad), slot_size, slot_size
+                )
                 if rect.collidepoint(x, y):
                     return idx
         return None
@@ -229,7 +245,7 @@ class Inventory:
             if entry is None:
                 self.slots.append(None)
             else:
-                self.slots.append(ItemStack.from_dict(entry))
+                self.slots.append(ItemStack.from_dict(cast(Dict[str, int], entry)))
         if len(self.slots) < 27:
             self.slots.extend([None] * (27 - len(self.slots)))
         self.slots = self.slots[:27]
@@ -254,7 +270,9 @@ class World:
         macro = self._noise(wx, 130.0, 110.0)
         medium = self._noise(wx, 48.0, 321.0)
         detail = self._noise(wx, 18.0, 690.0)
-        height = self.base_surface + int((macro - 0.5) * 26 + (medium - 0.5) * 14 + (detail - 0.5) * 7)
+        height = self.base_surface + int(
+            (macro - 0.5) * 26 + (medium - 0.5) * 14 + (detail - 0.5) * 7
+        )
         return max(22, min(self.height - 24, height))
 
     def _cave_noise(self, wx: int, wy: int) -> float:
@@ -358,7 +376,9 @@ class World:
     def to_dict(self) -> Dict[str, object]:
         serialized_chunks: Dict[str, List[List[int]]] = {}
         for cx, chunk in self.chunks.items():
-            serialized_chunks[str(cx)] = [[wx, wy, block_id] for (wx, wy), block_id in chunk.items()]
+            serialized_chunks[str(cx)] = [
+                [wx, wy, block_id] for (wx, wy), block_id in chunk.items()
+            ]
         return {
             "seed": self.seed,
             "chunk_size": self.chunk_size,
@@ -514,15 +534,21 @@ class Game:
         self.last_mouse_left = False
         self.last_mouse_right = False
 
-        self.recipes = [
+        self.recipes: List[Recipe] = [
             {"name": "Compacted Stone", "inputs": [(BLOCK_DIRT, 4)], "output": (BLOCK_STONE, 1)},
-            {"name": "Refined Ore", "inputs": [(BLOCK_STONE, 3), (BLOCK_ORE, 1)], "output": (BLOCK_ORE, 2)},
+            {
+                "name": "Refined Ore",
+                "inputs": [(BLOCK_STONE, 3), (BLOCK_ORE, 1)],
+                "output": (BLOCK_ORE, 2),
+            },
         ]
 
         self.new_world()
 
     # --- Utility ------------------------------------------------------------
-    def lerp_color(self, c1: Tuple[int, int, int], c2: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+    def lerp_color(
+        self, c1: Tuple[int, int, int], c2: Tuple[int, int, int], t: float
+    ) -> Tuple[int, int, int]:
         t = max(0.0, min(1.0, t))
         return (
             int(c1[0] + (c2[0] - c1[0]) * t),
@@ -567,7 +593,10 @@ class Game:
         surface = self.world._surface_height(spawn_x)
         self.player = Player(spawn_x * TILE_SIZE, (surface - 4) * TILE_SIZE)
         self.inventory = Inventory()
-        self.camera.xy = (self.player.x - self.screen.get_width() / 2, self.player.y - self.screen.get_height() / 2)
+        self.camera.xy = (
+            self.player.x - self.screen.get_width() / 2,
+            self.player.y - self.screen.get_height() / 2,
+        )
         self.particles.clear()
 
     def save_game(self) -> None:
@@ -589,7 +618,10 @@ class Game:
         self.inventory = Inventory()
         self.inventory.from_dict(data.get("inventory", {}))
         self.day_timer = float(data.get("day_timer", 0.0))
-        self.camera.xy = (self.player.x - self.screen.get_width() / 2, self.player.y - self.screen.get_height() / 2)
+        self.camera.xy = (
+            self.player.x - self.screen.get_width() / 2,
+            self.player.y - self.screen.get_height() / 2,
+        )
         return True
 
     # --- Input & gameplay ---------------------------------------------------
@@ -619,7 +651,9 @@ class Game:
         px, py = self.player_block_pos()
         return abs(wx - px) <= 8 and abs(wy - py) <= 8
 
-    def handle_mining_and_placing(self, dt: float, mouse_pos: Tuple[int, int], mouse_buttons: Tuple[bool, bool, bool]) -> None:
+    def handle_mining_and_placing(
+        self, dt: float, mouse_pos: Tuple[int, int], mouse_buttons: Tuple[bool, bool, bool]
+    ) -> None:
         left = mouse_buttons[0]
         right = mouse_buttons[2]
         target_wx, target_wy = self.screen_to_block(*mouse_pos)
@@ -655,11 +689,22 @@ class Game:
                 self.mining_progress = 0.0
 
         # Placement (edge triggered)
-        if right and not self.last_mouse_right and not self.show_inventory and not self.show_menu and not self.show_crafting:
-            if self.can_reach(target_wx, target_wy) and self.world.get_block(target_wx, target_wy) == BLOCK_AIR:
+        if (
+            right
+            and not self.last_mouse_right
+            and not self.show_inventory
+            and not self.show_menu
+            and not self.show_crafting
+        ):
+            if (
+                self.can_reach(target_wx, target_wy)
+                and self.world.get_block(target_wx, target_wy) == BLOCK_AIR
+            ):
                 selected = self.inventory.get_selected_block()
                 if selected is not None:
-                    place_rect = pygame.Rect(target_wx * TILE_SIZE, target_wy * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                    place_rect = pygame.Rect(
+                        target_wx * TILE_SIZE, target_wy * TILE_SIZE, TILE_SIZE, TILE_SIZE
+                    )
                     if not place_rect.colliderect(self.player.rect):
                         consumed = self.inventory.consume_selected(1)
                         if consumed is not None:
@@ -785,16 +830,24 @@ class Game:
         rect = self.player.rect.move(-int(self.camera.x), -int(self.camera.y))
         body = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
 
-        swing = math.sin(self.player.walk_cycle) * 3.0 * min(1.0, abs(self.player.vx) / max(1.0, self.player.speed))
+        swing = (
+            math.sin(self.player.walk_cycle)
+            * 3.0
+            * min(1.0, abs(self.player.vx) / max(1.0, self.player.speed))
+        )
         pygame.draw.rect(body, (25, 30, 60), (0, 0, rect.width, rect.height), border_radius=5)
-        pygame.draw.rect(body, (*NEON_CYAN, 150), (0, 0, rect.width, rect.height), width=2, border_radius=5)
+        pygame.draw.rect(
+            body, (*NEON_CYAN, 150), (0, 0, rect.width, rect.height), width=2, border_radius=5
+        )
         eye_y = rect.height // 3
         eye_x = rect.width // 2 + int(swing)
         pygame.draw.circle(body, (*NEON_MAGENTA, 220), (eye_x, eye_y), 3)
 
         self.screen.blit(body, rect.topleft)
         glow_rect = rect.inflate(16, 16)
-        self.glow_rect(self.screen, glow_rect, NEON_CYAN, core_alpha=90, glow_alpha=int(70 + 60 * night_factor))
+        self.glow_rect(
+            self.screen, glow_rect, NEON_CYAN, core_alpha=90, glow_alpha=int(70 + 60 * night_factor)
+        )
 
     def draw_particles(self) -> None:
         for particle in self.particles:
@@ -826,11 +879,19 @@ class Game:
 
     def draw_item_icon(self, slot_rect: pygame.Rect, stack: ItemStack) -> None:
         block = BLOCKS[stack.block_id]
-        icon = pygame.Rect(slot_rect.x + 10, slot_rect.y + 8, slot_rect.width - 20, slot_rect.height - 20)
+        icon = pygame.Rect(
+            slot_rect.x + 10, slot_rect.y + 8, slot_rect.width - 20, slot_rect.height - 20
+        )
         pygame.draw.rect(self.screen, block.color, icon, border_radius=3)
         pygame.draw.rect(self.screen, block.glow, icon, width=2, border_radius=3)
         count_text = self.font.render(str(stack.count), True, block.glow)
-        self.screen.blit(count_text, (slot_rect.right - count_text.get_width() - 4, slot_rect.bottom - count_text.get_height() - 3))
+        self.screen.blit(
+            count_text,
+            (
+                slot_rect.right - count_text.get_width() - 4,
+                slot_rect.bottom - count_text.get_height() - 3,
+            ),
+        )
 
     def draw_inventory_panel(self) -> pygame.Rect:
         w, h = self.screen.get_size()
@@ -851,7 +912,9 @@ class Game:
         for row in range(3):
             for col in range(9):
                 idx = row * 9 + col
-                slot_rect = pygame.Rect(sx + col * (slot_size + pad), sy + row * (slot_size + pad), slot_size, slot_size)
+                slot_rect = pygame.Rect(
+                    sx + col * (slot_size + pad), sy + row * (slot_size + pad), slot_size, slot_size
+                )
                 color = NEON_MAGENTA if idx == self.inventory.selected_hotbar else NEON_CYAN
                 pygame.draw.rect(self.screen, (8, 18, 36), slot_rect, border_radius=6)
                 self.glow_rect(self.screen, slot_rect, color, core_alpha=125, glow_alpha=42)
@@ -922,7 +985,13 @@ class Game:
 
             button = pygame.Rect(row.right - 110, row.y + 26, 92, 38)
             pygame.draw.rect(self.screen, (15, 30, 45), button, border_radius=6)
-            self.glow_rect(self.screen, button, NEON_GREEN if can_craft else NEON_MAGENTA, core_alpha=120, glow_alpha=45)
+            self.glow_rect(
+                self.screen,
+                button,
+                NEON_GREEN if can_craft else NEON_MAGENTA,
+                core_alpha=120,
+                glow_alpha=45,
+            )
             bt = self.font.render("CRAFT", True, NEON_YELLOW if can_craft else (180, 80, 180))
             self.screen.blit(bt, (button.x + 18, button.y + 8))
 
@@ -978,14 +1047,28 @@ class Game:
                 self.inventory.selected_hotbar = (self.inventory.selected_hotbar - event.y) % 9
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.show_inventory and event.button == 1:
-                    panel = pygame.Rect(self.screen.get_width() // 2 - 320, self.screen.get_height() // 2 - 250, 640, 500)
-                    idx = self.inventory.slot_from_point(event.pos[0], event.pos[1], panel, full=True)
+                    panel = pygame.Rect(
+                        self.screen.get_width() // 2 - 320,
+                        self.screen.get_height() // 2 - 250,
+                        640,
+                        500,
+                    )
+                    idx = self.inventory.slot_from_point(
+                        event.pos[0], event.pos[1], panel, full=True
+                    )
                     if idx is not None:
                         self.inventory.click_slot(idx)
                 if self.show_crafting and event.button == 1:
-                    panel = pygame.Rect(self.screen.get_width() // 2 - 300, self.screen.get_height() // 2 - 220, 600, 440)
+                    panel = pygame.Rect(
+                        self.screen.get_width() // 2 - 300,
+                        self.screen.get_height() // 2 - 220,
+                        600,
+                        440,
+                    )
                     for i in range(len(self.recipes)):
-                        row = pygame.Rect(panel.x + 30, panel.y + 90 + i * 120, panel.width - 60, 92)
+                        row = pygame.Rect(
+                            panel.x + 30, panel.y + 90 + i * 120, panel.width - 60, 92
+                        )
                         button = pygame.Rect(row.right - 110, row.y + 26, 92, 38)
                         if button.collidepoint(event.pos):
                             self.craft(i)

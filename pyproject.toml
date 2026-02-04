@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gascraft2d"
+version = "0.1.0"
+description = "Neon voxel sandbox game built with pygame"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Gas Town" }]
+dependencies = [
+  "pygame>=2.5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=25.1.0",
+  "mypy>=1.14.1",
+  "pre-commit>=4.1.0",
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.9.4",
+  "sphinx>=8.1.3",
+  "sphinx-rtd-theme>=3.0.2",
+]
+
+[project.scripts]
+gascraft2d = "gascraft2d.game:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=gascraft2d.core --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["gascraft2d.core"]
+branch = true
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["gascraft2d.core"]
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
